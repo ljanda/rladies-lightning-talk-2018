@@ -1,0 +1,183 @@
+---
+title: "Freak Your Factors"
+author: "Luda"
+date: "5/10/2018"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+<br> 
+
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+library(janitor)
+library(devtools)
+devtools::install_github("hadley/emo")
+library(emo)
+```
+
+<br>
+
+## Motivation and `r emo::ji("package")`s
+- Show how other R-Ladies' talks have helped me solve a real-world problem I had at work
+- Build on the idea of Emily Robinson's 
+"Lesser Kown `r emo::ji("star")`s of the Tidyverse" (using dplyr::mutate_at(), dplyr::select_if())
+- Using janitor::tabyl() - thank you, Erin Grand!
+- Using purrr::map() - thank you, Joyce Robbins!
+
+<br>
+
+### TLDR
+Problem: survey data with many Likert-style factor variables that vary by question `r emo::ji("face_with_rolling_eyes")`
+<br>
+Pattern: several of the factor variables have the same levels `r emo::ji("face_with_monocle")`
+<br>
+Solution: change all those variables at once! `r emo::ji("star-struck")`
+
+<br>
+
+### Inspect the problem (simplified example)
+Note:
+
+- Already named variables that have the same factor levels with the same prefix
+- This snippet is a remix of code from Emily's talk for inspecting numeric variables
+(thanks Brooke Watson, remix `r emo::ji("princess")`, for inspo)
+```{r}
+pre <- suppressMessages(read_csv(here("r_ladies_pre_data.csv")))
+```
+
+```{r}
+pre %>% 
+ select_if(is.character) %>% 
+ select(contains("rye_"), 
+        contains("hk_")) %>% 
+ map(~tabyl(.))
+```
+
+
+<br>
+
+### Set correct levels
+```{r}
+rye_levels <- c("Very new", "Emerging", "Experienced", "Expert")
+hk_levels <- c("Not at all knowledgeable", "Not knowledgeable", "Knowledgeable", "Very knowledgeable")
+```
+
+<br> 
+
+### Apply levels 
+```{r}
+pre_f <- 
+  pre %>% 
+  mutate_at(vars(contains("rye_")), ~ factor(., levels = rye_levels)) %>% 
+  mutate_at(vars(contains("hk_")), ~ factor(., levels = hk_levels)) 
+```
+
+<br>
+
+### Check levels
+```{r}
+pre_f %>% 
+ select_if(is.factor) %>% 
+ select(contains("rye_"), contains("hk_")) %>% 
+ map(~tabyl(.))
+```
+
+<br>
+
+`r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` BUT WAIT...
+
+### Post Survey
+Here, things get interesting!
+The *dear* people that wrote this survey
+decided to phrase different levels of 
+the same type of question in different ways 
+
+### Inspect the problem 
+```{r}
+post <- suppressMessages(read_csv(here("post_data.csv")))
+```
+
+```{r}
+post %>% 
+ select(contains("well_")) %>% 
+ map(~tabyl(.))
+```
+
+### Make all factor var responses lower case 
+```{r}
+post_f <- 
+  post %>% 
+  mutate_at(vars(contains("well_")), ~ tolower(.))
+```
+
+
+### Find the patterns, make patterns and replacements,
+then gsub them all away! 
+```{r}
+pattern_4 <- "very.*"
+replacement_4 <- 4
+
+pattern_1 <- ".*at all.*"
+replacement_1 <- 1
+
+pattern_2 <- "not 4"
+replacement_2 <- 2
+
+pattern_3 <- "somewhat.*"
+replacement_3 <- 3
+
+pattern_3w <- "well"
+replacement_3w <- 3
+
+post_f <- 
+  post_f %>% 
+  mutate_at(vars(-contains("_comment")), ~ gsub(pattern_4, replacement_4, .)) %>% 
+  mutate_at(vars(-contains("_comment")), ~ gsub(pattern_1, replacement_1, .)) %>% 
+  mutate_at(vars(-contains("_comment")), ~ gsub(pattern_2, replacement_2, .)) %>% 
+  mutate_at(vars(-contains("_comment")), ~ gsub(pattern_3, replacement_3, .)) %>% 
+  mutate_at(vars(-contains("_comment")), ~ gsub(pattern_3w, replacement_3w, .)) %>% 
+  mutate(well_teacher_guide = 
+           ifelse(well_teacher_guide == "just okay", "2", well_teacher_guide),
+         well_s_reaction = 
+           ifelse(well_s_reaction == "just okay", "2", well_s_reaction),
+         well_design_proposal = 
+           ifelse(well_design_proposal == "not so 3", "2", well_design_proposal))
+
+```
+
+
+### Check levels 
+```{r}
+post_f %>% 
+ select(contains("well_")) %>% 
+ map(~tabyl(.))
+```
+
+### Final product example 
+
+<br>
+
+```{r echo=FALSE, out.width='60%'}
+knitr::include_graphics(here::here("graph_ex.png"))
+```
+
+
+<br>
+
+`r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")` `r emo::ji("tada")`
+
+<br>
+
+### Epilogue
+```{r echo=FALSE, out.width='40%'}
+knitr::include_graphics(here::here('hadley_tada.png'))
+```
+
+# Thank you to R Ladies all around the world!! 
